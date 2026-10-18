@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #F5EBDF;
+  --color-rust: #C04E2A;
+  --color-maroon: #661414;
+  --color-ink: #351D1D;
+  --color-clay: #B58777;
+  --color-blush: #E6CBBD;
+  --color-paper: #F8F2EB;
+
+  --font-serif: "Newsreader", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  h1, h2, h3, .font-serif-headline {
+    font-family: var(--font-serif);
+  }
+}
+
+/* Custom scrollbars for data tables and storyboards */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F5EBDF;
+}
+::-webkit-scrollbar-thumb {
+  background: #B58777;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C04E2A;
+}
