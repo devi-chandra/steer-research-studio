@@ -1,0 +1,7 @@
+file 'D:/steer/artifacts/test_audit_fresh_everyday/scene_01/scene_01.mp4'
+file 'D:/steer/artifacts/test_audit_fresh_everyday/scene_02/scene_02.mp4'
+file 'D:/steer/artifacts/test_audit_fresh_everyday/scene_03/scene_03.mp4'
+file 'D:/steer/artifacts/test_audit_fresh_everyday/scene_04/scene_04.mp4'
+file 'D:/steer/artifacts/test_audit_fresh_everyday/scene_05/scene_05.mp4'
+file 'D:/steer/artifacts/test_audit_fresh_everyday/scene_06/scene_06.mp4'
+file 'D:/steer/artifacts/test_audit_fresh_everyday/scene_07/scene_07.mp4'
