@@ -9,8 +9,11 @@ import {
   AlertTriangle,
   Download,
   Settings as SettingsIcon,
-  HelpCircle
+  PanelLeftClose,
+  PanelLeftOpen,
+  BookOpenCheck
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 export type NavItem =
   | 'dashboard'
@@ -23,11 +26,24 @@ export type NavItem =
   | 'export_center'
   | 'settings';
 
+type SidebarItem = {
+  id: NavItem;
+  label: string;
+  icon: LucideIcon;
+  highlight?: boolean;
+  badge?: number;
+  badgeType?: 'alert';
+};
+
+type SidebarGroup = { label: string; items: SidebarItem[] };
+
 interface SidebarProps {
   currentTab: NavItem;
   onSelectTab: (tab: NavItem) => void;
   pendingReviewsCount?: number;
   criticalIssuesCount?: number;
+  collapsed?: boolean;
+  onToggle?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -35,72 +51,67 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   pendingReviewsCount = 0,
   criticalIssuesCount = 0,
+  collapsed = false,
+  onToggle,
 }) => {
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'new_research', label: 'New Research', icon: PlusCircle, highlight: true },
-    { id: 'evidence_ledger', label: 'Evidence Ledger', icon: FileCheck2 },
-    { id: 'content_studio', label: 'Content Studio', icon: Sparkles },
-    { id: 'powerpoint_studio', label: 'PowerPoint Studio', icon: Presentation },
-    { id: 'review_gate', label: 'Medical Review Gate', icon: ShieldCheck, badge: pendingReviewsCount },
-    { id: 'claim_safety', label: 'Claim Safety Checks', icon: AlertTriangle, badge: criticalIssuesCount, badgeType: 'alert' },
-    { id: 'export_center', label: 'Export Center', icon: Download },
-    { id: 'settings', label: 'Settings & Status', icon: SettingsIcon },
+  const groups: SidebarGroup[] = [
+    { label: 'Studio', items: [
+      { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+      { id: 'new_research', label: 'New research', icon: PlusCircle, highlight: true },
+      { id: 'evidence_ledger', label: 'Evidence ledger', icon: FileCheck2 },
+      { id: 'content_studio', label: 'Content studio', icon: Sparkles },
+      { id: 'powerpoint_studio', label: 'Presentation', icon: Presentation },
+    ] },
+    { label: 'Quality & delivery', items: [
+      { id: 'review_gate', label: 'Medical review', icon: ShieldCheck, badge: pendingReviewsCount },
+      { id: 'claim_safety', label: 'Claim safety', icon: AlertTriangle, badge: criticalIssuesCount, badgeType: 'alert' },
+      { id: 'export_center', label: 'Exports', icon: Download },
+    ] },
+    { label: 'System', items: [
+      { id: 'settings', label: 'Settings', icon: SettingsIcon },
+    ] },
   ];
 
   return (
-    <aside className="w-64 border-r border-[#E6CBBD] bg-[#F8F2EB] flex flex-col justify-between p-4 shrink-0 h-[calc(100vh-4rem)]">
-      <div className="space-y-1">
-        <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-[#B58777]">
-          Medical Editorial Workflow
+    <aside className={`app-sidebar ${collapsed ? 'is-collapsed' : ''}`}>
+      <div className="sidebar-scroll">
+        <div className="sidebar-topline">
+          {!collapsed && <span>Navigate</span>}
+          <button className="sidebar-toggle" onClick={onToggle} aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'} title={collapsed ? 'Expand navigation' : 'Collapse navigation'}>
+            {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          </button>
         </div>
-
-        {navItems.map((item) => {
+        {groups.map((group) => <div className="sidebar-group" key={group.label}>
+          {!collapsed && <div className="sidebar-group-label">{group.label}</div>}
+          {group.items.map((item) => {
           const Icon = item.icon;
           const isActive = currentTab === item.id;
           return (
             <button
               key={item.id}
               onClick={() => onSelectTab(item.id as NavItem)}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                isActive
-                  ? 'bg-[#661414] text-[#F5EBDF] shadow-sm font-semibold'
-                  : item.highlight
-                  ? 'text-[#C04E2A] hover:bg-[#E6CBBD]/30 font-semibold'
-                  : 'text-[#351D1D] hover:bg-[#F5EBDF] hover:text-[#661414]'
-              }`}
+              title={collapsed ? item.label : undefined}
+              aria-label={item.label}
+              className={`sidebar-nav-item ${isActive ? 'is-active' : ''} ${item.highlight ? 'is-highlight' : ''}`}
             >
-              <div className="flex items-center gap-3">
-                <Icon className={`w-4 h-4 ${isActive ? 'text-[#F5EBDF]' : item.highlight ? 'text-[#C04E2A]' : 'text-[#B58777]'}`} />
-                <span>{item.label}</span>
+              <div className="sidebar-item-label">
+                <Icon size={18} strokeWidth={1.8} />
+                {!collapsed && <span>{item.label}</span>}
               </div>
-
               {item.badge !== undefined && item.badge > 0 && (
-                <span
-                  className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                    item.badgeType === 'alert'
-                      ? 'bg-rose-100 text-rose-800'
-                      : isActive
-                      ? 'bg-[#F5EBDF] text-[#661414]'
-                      : 'bg-[#C04E2A] text-white'
-                  }`}
-                >
+                <span className={`sidebar-badge ${item.badgeType === 'alert' ? 'is-alert' : ''}`}>
                   {item.badge}
                 </span>
               )}
             </button>
           );
         })}
+        </div>)}
       </div>
 
-      {/* Steer Editorial Principle Card */}
-      <div className="bg-[#F5EBDF] border border-[#E6CBBD] rounded-xl p-3.5 text-xs text-[#351D1D] space-y-1.5 shadow-sm">
-        <div className="flex items-center gap-1.5 text-[#661414] font-serif font-bold text-sm">
-          <span>Editorial Oath</span>
-        </div>
-        <p className="text-[#351D1D]/80 leading-relaxed font-sans text-[11px]">
-          One verified scientific source. Multiple formats. Different audiences. Consistent evidence. Human approval.
-        </p>
+      <div className="sidebar-footnote" title="Evidence first · human review always">
+        <BookOpenCheck size={17} />
+        {!collapsed && <span>Evidence first · human review always</span>}
       </div>
     </aside>
   );

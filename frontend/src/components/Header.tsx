@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Cpu, UserCheck, BookOpen, Layers } from 'lucide-react';
+import { Cpu, UserRoundCheck, BookOpen, Moon, Sun } from 'lucide-react';
 import { Project, SystemStatus } from '../types';
 
 interface HeaderProps {
@@ -7,40 +7,40 @@ interface HeaderProps {
   projects: Project[];
   onSelectProject: (proj: Project) => void;
   systemStatus: SystemStatus | null;
+  darkMode: boolean;
+  onToggleTheme: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentProject,
   projects,
   onSelectProject,
-  systemStatus
+  systemStatus,
+  darkMode,
+  onToggleTheme
 }) => {
   return (
-    <header className="h-16 border-b border-[#E6CBBD] bg-[#F8F2EB] px-6 flex items-center justify-between sticky top-0 z-30">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#661414] flex items-center justify-center text-[#F5EBDF] font-serif font-bold text-lg shadow-sm">
-            S
-          </div>
+    <header className="app-header">
+      <div className="header-brand-row">
+        <div className="brand-lockup">
+          <div className="brand-mark">S</div>
           <div>
-            <span className="font-serif font-bold text-[#661414] text-lg tracking-tight">STEER</span>
-            <span className="ml-2 text-xs font-semibold uppercase tracking-wider text-[#C04E2A] bg-[#E6CBBD]/40 px-2 py-0.5 rounded">
-              Scheme 2 Studio
-            </span>
+            <span className="brand-name">STEER</span>
+            <span className="brand-caption">Research studio</span>
           </div>
         </div>
 
         {/* Project Selector */}
         {projects.length > 0 && (
-          <div className="flex items-center gap-2 ml-4 pl-4 border-l border-[#E6CBBD]">
-            <BookOpen className="w-4 h-4 text-[#B58777]" />
+          <div className="project-picker">
+            <BookOpen size={16} />
             <select
               value={currentProject?.id || ''}
               onChange={(e) => {
                 const found = projects.find(p => p.id === e.target.value);
                 if (found) onSelectProject(found);
               }}
-              className="bg-[#F5EBDF] border border-[#B58777]/50 rounded-md text-xs font-medium text-[#351D1D] px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#C04E2A] max-w-[280px] truncate"
+              className="project-picker-select"
             >
               {projects.map(p => (
                 <option key={p.id} value={p.id}>
@@ -52,22 +52,21 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="header-status-row">
+        <button className="theme-toggle" type="button" onClick={onToggleTheme} aria-label={`Switch to ${darkMode ? 'light' : 'dark'} mode`} title={`Switch to ${darkMode ? 'light' : 'dark'} mode`}>
+          {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
         {/* AI Provider Status Pill */}
-        <div className="hidden md:flex items-center gap-1.5 bg-[#F5EBDF] border border-[#B58777]/40 px-3 py-1 rounded-full text-xs text-[#351D1D]">
-          <Cpu className="w-3.5 h-3.5 text-[#C04E2A]" />
-          <span className="font-medium">
-            {systemStatus?.ai_provider?.status_label || 'Deterministic Scientific Engine'}
-          </span>
+        <div className="provider-chip" title={systemStatus?.ai_provider?.status_label || 'Deterministic scientific engine'}>
+          <Cpu size={15} />
+          <span>{systemStatus?.ai_provider?.active_provider || 'Local'} <span className="provider-detail">engine</span></span>
         </div>
 
         {/* Simulated Reviewer Demo Profile */}
-        <div className="flex items-center gap-2 bg-[#661414]/10 border border-[#661414]/20 px-3 py-1 rounded-full text-xs text-[#661414]">
-          <UserCheck className="w-3.5 h-3.5 text-[#661414]" />
-          <span className="font-semibold">Simulated Reviewer</span>
-          <span className="bg-[#661414] text-[#F5EBDF] text-[10px] px-1.5 py-0.2 rounded font-mono">
-            DEMO SIMULATION
-          </span>
+        <div className="reviewer-chip" title="Reviewer actions are simulated in this demo">
+          <UserRoundCheck size={15} />
+          <span>Demo reviewer</span>
+          <span className="demo-dot" aria-label="Simulation" />
         </div>
       </div>
     </header>

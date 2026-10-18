@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
+import { PageMotif } from './components/PageMotif';
 import { Sidebar, NavItem } from './components/Sidebar';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewResearchPage } from './pages/NewResearchPage';
@@ -14,11 +15,20 @@ import { api } from './services/api';
 import { Project, SystemStatus } from './types';
 
 export function App() {
+  const [darkMode, setDarkMode] = useState(() => {
+    try { return localStorage.getItem('steer-theme') === 'dark'; } catch { return false; }
+  });
   const [currentTab, setCurrentTab] = useState<NavItem>('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [criticalIssuesCount, setCriticalIssuesCount] = useState<number>(0);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
+    try { localStorage.setItem('steer-theme', darkMode ? 'dark' : 'light'); } catch { /* storage may be unavailable */ }
+  }, [darkMode]);
 
   const loadProjects = async () => {
     try {
@@ -68,27 +78,32 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F2EB] text-[#351D1D] flex flex-col font-sans selection:bg-[#E6CBBD] selection:text-[#661414]">
+    <div className="app-shell min-h-screen flex flex-col font-sans">
       {/* Top Header */}
       <Header
         currentProject={currentProject}
         projects={projects}
         onSelectProject={(proj) => setCurrentProject(proj)}
         systemStatus={systemStatus}
+        darkMode={darkMode}
+        onToggleTheme={() => setDarkMode((value) => !value)}
       />
 
       {/* Main Body */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="app-workspace flex flex-1 min-h-0 overflow-hidden">
         {/* Sidebar */}
         <Sidebar
           currentTab={currentTab}
           onSelectTab={(tab) => setCurrentTab(tab)}
           pendingReviewsCount={currentProject?.pending_reviews_count || 0}
           criticalIssuesCount={criticalIssuesCount}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed((value) => !value)}
         />
 
         {/* Dynamic Main Workspace */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="workspace-main flex-1 min-w-0 overflow-y-auto">
+          <PageMotif tab={currentTab} />
           {currentTab === 'dashboard' && (
             <DashboardPage
               projects={projects}

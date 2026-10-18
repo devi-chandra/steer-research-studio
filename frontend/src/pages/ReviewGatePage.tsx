@@ -133,7 +133,7 @@ export const ReviewGatePage: React.FC<ReviewGatePageProps> = ({ currentProject, 
   const approvedCount = claims.filter(c => c.review_status.includes('Approved')).length;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="workspace-page max-w-7xl mx-auto space-y-6">
       {/* Simulation / Demo Notice Banner */}
       <div className="bg-sky-50 border border-sky-300 rounded-2xl p-4 flex items-start gap-3 shadow-xs">
         <Info className="w-5 h-5 text-sky-700 shrink-0 mt-0.5" />

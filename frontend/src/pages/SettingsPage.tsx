@@ -47,7 +47,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8">
+    <div className="workspace-page max-w-5xl mx-auto space-y-8">
       {/* Header */}
       <div>
         <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#C04E2A] uppercase tracking-wider mb-1">

@@ -96,7 +96,7 @@ export const NewResearchPage: React.FC<NewResearchPageProps> = ({ onProjectCreat
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
+    <div className="workspace-page max-w-4xl mx-auto space-y-8">
       {/* Title */}
       <div>
         <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#C04E2A] uppercase tracking-wider mb-1.5">
