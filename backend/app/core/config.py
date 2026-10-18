@@ -5,9 +5,10 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Steer — Doctor-Led Research-to-Content Studio"
     PROJECT_VERSION: str = "2.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = False
     PORT: int = 8005
-    HOST: str = "127.0.0.1"
+    HOST: str = "0.0.0.0"
+    CORS_ORIGINS: str = "http://localhost:5174,http://127.0.0.1:5174"
 
     # Base Paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent.parent
@@ -16,6 +17,7 @@ class Settings(BaseSettings):
     GENERATED_DIR: Path = STORAGE_DIR / "generated"
     EXPORTS_DIR: Path = STORAGE_DIR / "exports"
     DATABASE_PATH: Path = STORAGE_DIR / "steer_studio.db"
+    FFMPEG_PATH: str = "ffmpeg"
 
     # AI Configuration
     GEMINI_API_KEY: str = ""

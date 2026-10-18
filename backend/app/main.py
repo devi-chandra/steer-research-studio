@@ -23,10 +23,11 @@ app = FastAPI(
     description="Doctor-Led Research-to-Content Studio. One verified scientific source. Multiple formats. Different audiences. Consistent evidence. Human approval."
 )
 
-# Enable CORS for frontend development
+cors_origins = [origin.strip().rstrip("/") for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
