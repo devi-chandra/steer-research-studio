@@ -1,14 +1,26 @@
-export interface PaperMetadata {
-  title?: string;
-  authors?: string[];
-  year?: number;
-  doi?: string;
-  journal?: string;
-  abstract?: string;
-  study_type?: string;
-  key_findings?: string[];
-  limitations?: string[];
-  page_count?: number;
+export interface Project {
+  id: string;
+  title: string;
+  authors: string;
+  publication: string;
+  year: string;
+  doi: string;
+  source_type: 'pdf' | 'url' | 'text';
+  source_url: string;
+  source_path: string;
+  extraction_status: 'pending' | 'extracted' | 'failed' | 'scanned_needs_ocr';
+  metadata_verified: boolean;
+  limitation_notes: string;
+  created_at: string;
+  updated_at: string;
+  claims_count?: number;
+  assets_count?: number;
+  pending_reviews_count?: number;
+  pages?: {
+    page_number: number;
+    char_count: number;
+    section_headings: string;
+  }[];
 }
 
 export interface Claim {
@@ -16,183 +28,137 @@ export interface Claim {
   project_id: string;
   claim_id: string;
   claim_text: string;
-  original_claim_text?: string;
-  evidence_quote: string;
-  source_document?: string;
-  page_number?: number;
-  section?: string;
-  evidence_type: string;
-  population?: string;
-  sample_size?: string;
-  limitations: string[];
-  uncertainty_notes: string[];
-  confidence_estimate?: number;
-  verification_status: 'pending' | 'approved' | 'flagged' | 'rejected' | 'edited';
-  support_level: 'strong' | 'moderate' | 'weak' | 'unsupported';
-  support_notes?: string;
-  reviewer_notes?: string;
-  reviewed_by?: string;
-  reviewed_at?: string;
+  exact_quote: string;
+  page_number: number;
+  section_heading: string;
+  study_type: string;
+  population: string;
+  sample_size: string;
+  outcome_measured: string;
+  numerical_result: string;
+  units: string;
+  study_conditions: string;
+  limitations: string;
+  uncertainty: string;
+  evidence_status: 'Directly supported' | 'Partially supported' | 'Unsupported' | 'Unable to verify';
+  review_status: 'Pending Review' | 'Approved' | 'Approved (Edited by Doctor)' | 'Changes Requested' | 'Rejected';
+  review_notes: string;
+  reviewer_name: string;
   created_at: string;
   updated_at: string;
 }
 
 export interface CarouselSlide {
-  slide_number: number;
-  eyebrow?: string;
+  slide_index: number;
+  filename: string;
+  file_path: string;
+  preview_url: string;
   headline: string;
-  body_text: string;
-  key_stat?: string;
-  stat_label?: string;
-  practical_tip?: string;
-  source_citation?: string;
-  claim_ids: string[];
-}
-
-export interface StaticData {
-  eyebrow?: string;
-  headline: string;
-  body_copy: string;
-  practical_takeaway: string;
-  badge?: string;
-  source_citation?: string;
-  claim_ids: string[];
+  subhead: string;
+  body: string;
+  claim_id: string;
+  page_num: number;
 }
 
 export interface ReelScene {
-  scene_number: number;
-  duration_seconds: number;
-  visual_cue: string;
-  on_screen_text: string;
-  narration: string;
-  subtitle_text: string;
-  visual_style?: string;
-  visual_theme?: string;
-  animation_action?: string;
-  character_name?: string;
-  organ_character?: string;
-  claim_ids: string[];
-  thumbnail_url?: string;
-  video_url?: string;
-  render_status?: 'ready' | 'rendering' | 'completed' | 'failed' | string;
-  time_range?: string;
-  start_time_seconds?: number;
-  end_time_seconds?: number;
-}
-
-export interface ReelData {
-  reel_title: string;
-  hook: string;
-  target_duration_seconds: number;
-  practical_takeaway: string;
-  mode?: 'everyday' | 'professional';
-  visual_style?: string;
-  visual_theme?: string;
-  language?: string;
-  voice_name?: string;
-  scenes: ReelScene[];
-  manifest?: any;
-}
-
-export interface ContentDraft {
-  id: string;
-  project_id: string;
-  content_type: string;
-  audience?: string;
-  main_message?: string;
-  hook?: string;
-  body_copy?: string;
-  practical_takeaway?: string;
-  caption?: string;
-  hashtags: string[];
-  reasoning: {
-    hook_rationale?: string;
-    audience_relevance?: string;
-    metabolic_principle?: string;
-  };
-  claim_ids: string[];
-  slide_data?: CarouselSlide[];
-  static_data?: StaticData;
-  reel_data?: ReelData;
-  created_at: string;
-  updated_at: string;
-  version?: number;
-  review_status?: 'draft' | 'flagged' | 'approved' | string;
-  approved_version?: number;
-  metadata_json?: Record<string, any>;
-}
-
-export interface Artifact {
-  id: string;
-  project_id: string;
-  artifact_type: 'carousel_slide' | 'carousel_zip' | 'static_post' | 'reel_video' | 'reel_audio' | 'captions_txt' | 'claims_export_json' | 'claims_export_csv' | 'project_summary' | 'powerpoint_pptx';
-  filename: string;
-  file_path: string;
-  mime_type: string;
-
-  file_size_bytes: number;
-  metadata_json: Record<string, any>;
-  created_at: string;
-}
-
-export interface EffortRecord {
-  ingest_duration_ms: number;
-  ai_extraction_duration_ms: number;
-  ai_content_duration_ms: number;
-  media_rendering_duration_ms: number;
-  total_ai_duration_ms: number;
-  manual_edit_seconds: number;
-  manual_review_seconds: number;
-  estimated_traditional_hours: number;
-  estimated_time_saved_hours: number;
-}
-
-export interface Project {
-  id: string;
+  id?: string;
+  scene_index: number;
   title: string;
-  campaign_topic?: string;
-  source_type: 'pdf' | 'url';
-  source_filename?: string;
-  source_url?: string;
-  status: 'created' | 'ingesting' | 'extracting' | 'verifying' | 'translating' | 'content_ready' | 'reviewing' | 'approved' | 'completed' | 'error';
-  current_stage: number;
-  stage_message: string;
-  error_message?: string;
-  paper_metadata?: PaperMetadata;
+  narrator_character: string;
+  visual_description: string;
+  narration_text: string;
+  subtitle_native?: string;
+  subtitle_roman?: string;
+  visual_type: string;
+  duration_seconds: number;
+  claim_ids: string[];
+  claim_id?: string;
+  language_code?: string;
+  frame_preview?: string;
+  audio_url?: string;
+  tts_provider?: string;
+}
+
+export interface TwoStoriesData {
+  professional: {
+    audience: string;
+    tone: string;
+    scenes: ReelScene[];
+  };
+  everyday: {
+    audience: string;
+    tone: string;
+    scenes: ReelScene[];
+  };
+  shared_evidence_comparison: {
+    scene_index: number;
+    claim_id: string;
+    professional_wording: string;
+    everyday_wording: string;
+    shared_facts: string;
+  }[];
+}
+
+export interface InsideBodyData {
+  mechanism_type: string;
+  target_system: string;
+  safeguard_notice: string;
+  scenes: ReelScene[];
+}
+
+export interface ReviewRecord {
+  id: string;
+  project_id: string;
+  target_type: string;
+  target_id: string;
+  decision: 'Approve' | 'Edit' | 'Request Changes' | 'Reject';
+  reason_category: string;
+  original_content: string;
+  revised_content: string;
+  comments: string;
+  reviewer_name: string;
   created_at: string;
-  updated_at: string;
-  claims: Claim[];
-  content_drafts: ContentDraft[];
-  artifacts: Artifact[];
-  effort_record?: EffortRecord;
 }
 
-export interface DashboardMetrics {
-  total_projects: number;
-  total_claims: number;
-  approved_claims: number;
-  pending_claims: number;
-  flagged_claims: number;
-  rejected_claims: number;
-  total_artifacts: number;
-  total_hours_saved: number;
-  recent_projects: Project[];
+export interface ReviewRule {
+  id: string;
+  rule_type: string;
+  pattern_or_keyword: string;
+  description: string;
+  trigger_count: number;
+  is_active: boolean;
+  created_at: string;
 }
 
-export interface HealthStatus {
-  status: string;
+export interface ConsistencyCheck {
+  id: string;
+  project_id: string;
+  check_type: string;
+  severity: 'critical' | 'warning' | 'info';
+  affected_assets: string[];
+  source_claim_id: string;
+  discrepancy_explanation: string;
+  suggestion: string;
+  resolved: boolean;
+  created_at: string;
+}
+
+export interface SystemStatus {
+  project_name: string;
   version: string;
-  ai_provider: string;
-  tts_engine: string;
+  ai_provider: {
+    active_provider: string;
+    has_gemini_key: boolean;
+    has_openai_key: boolean;
+    status_label: string;
+  };
+  tts_provider: string;
+  supported_languages: {
+    code: string;
+    label: string;
+    tts_voice: string;
+    native_name: string;
+  }[];
   ffmpeg_available: boolean;
-  database_connected: boolean;
-}
-
-export interface SettingsData {
-  ai_provider: string;
-  gemini_key_configured: boolean;
-  openai_key_configured: boolean;
-  tts_engine: string;
-  tts_voice: string;
-  storage_dir: string;
+  ffmpeg_path: string;
 }

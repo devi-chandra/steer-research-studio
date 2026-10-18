@@ -1,329 +1,234 @@
-import { Project, DashboardMetrics, HealthStatus, SettingsData, Claim, ContentDraft, Artifact } from '../types';
+import {
+  Project,
+  Claim,
+  TwoStoriesData,
+  InsideBodyData,
+  ReviewRecord,
+  ReviewRule,
+  ConsistencyCheck,
+  SystemStatus,
+  ReelScene
+} from '../types';
 
-const API_BASE = 'http://127.0.0.1:8000';
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+
+function resolveMediaUrls(value: any): any {
+  if (Array.isArray(value)) return value.map(resolveMediaUrls);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+      key,
+      typeof item === 'string' && key.endsWith('_url') && item.startsWith('/storage/')
+        ? `${BASE_URL}${item}`
+        : resolveMediaUrls(item),
+    ]));
+  }
+  return value;
+}
+
+async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const url = `${BASE_URL}${endpoint}`;
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Accept': 'application/json',
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    let errorDetail = 'Request failed';
+    try {
+      const errorJson = await response.json();
+      errorDetail = errorJson.detail || errorJson.error || errorDetail;
+    } catch {
+      errorDetail = `HTTP ${response.status}: ${response.statusText}`;
+    }
+    throw new Error(errorDetail);
+  }
+
+  return resolveMediaUrls(await response.json());
+}
 
 export const api = {
-  // System & Health
-  async getHealth(): Promise<HealthStatus> {
-    const res = await fetch(`${API_BASE}/api/health`);
-    if (!res.ok) throw new Error('Failed to fetch system health');
-    return res.json();
-  },
-
-  async getDashboard(): Promise<DashboardMetrics> {
-    const res = await fetch(`${API_BASE}/api/dashboard`);
-    if (!res.ok) throw new Error('Failed to fetch dashboard metrics');
-    return res.json();
-  },
-
-  async getSettings(): Promise<SettingsData> {
-    const res = await fetch(`${API_BASE}/api/settings`);
-    if (!res.ok) throw new Error('Failed to fetch settings');
-    return res.json();
-  },
-
-  async updateSettings(data: Partial<SettingsData> & { gemini_api_key?: string; openai_api_key?: string }): Promise<SettingsData> {
-    const res = await fetch(`${API_BASE}/api/settings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+  // System Status
+  getStatus: () => request<SystemStatus>('/api/settings/status'),
+  downloadSamplePdf: async () => {
+    const response = await fetch(`${BASE_URL}/api/settings/sample-pdf`, {
+      headers: { 'Accept': 'application/pdf' },
     });
-    if (!res.ok) throw new Error('Failed to update settings');
-    return res.json();
+    if (!response.ok) {
+      throw new Error(`Sample PDF request failed: HTTP ${response.status}`);
+    }
+    return response.blob();
   },
 
   // Projects
-  async listProjects(): Promise<Project[]> {
-    const res = await fetch(`${API_BASE}/api/projects`);
-    if (!res.ok) throw new Error('Failed to list projects');
-    return res.json();
-  },
+  getProjects: () => request<{ projects: Project[] }>('/api/projects'),
+  getProject: (id: string) => request<Project>(`/api/projects/${id}`),
+  deleteProject: (id: string) => request<{ success: boolean }>(`/api/projects/${id}`, { method: 'DELETE' }),
 
-  async getProject(projectId: string): Promise<Project> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}`);
-    if (!res.ok) throw new Error('Failed to fetch project details');
-    return res.json();
-  },
-
-  async createProject(data: { title: string; campaign_topic?: string; source_type: 'pdf' | 'url'; source_url?: string }): Promise<Project> {
-    const res = await fetch(`${API_BASE}/api/projects`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to create project');
-    return res.json();
-  },
-
-  async uploadPdf(projectId: string, file: File): Promise<any> {
+  uploadPdf: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/upload`, {
+    return request<{ success: boolean; project_id: string; message: string; extraction: any }>('/api/projects/upload-pdf', {
       method: 'POST',
       body: formData,
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: 'Upload failed' }));
-      throw new Error(err.detail || 'Upload failed');
-    }
-    return res.json();
   },
 
-  async processPipeline(projectId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/process`, {
+  ingestUrl: (url: string) =>
+    request<{ success: boolean; project_id: string; message: string; extraction: any }>('/api/projects/ingest-url', {
       method: 'POST',
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: 'Pipeline processing failed' }));
-      throw new Error(err.detail || 'Pipeline processing failed');
-    }
-    return res.json();
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    }),
+
+  // Evidence Ledger
+  extractClaims: (projectId: string) =>
+    request<{ success: boolean; extraction: any; verification: any }>(`/api/projects/${projectId}/extract-claims`, {
+      method: 'POST',
+    }),
+
+  getClaims: (projectId: string, evidenceStatus?: string, reviewStatus?: string) => {
+    const params = new URLSearchParams();
+    if (evidenceStatus) params.append('evidence_status', evidenceStatus);
+    if (reviewStatus) params.append('review_status', reviewStatus);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return request<{ project_id: string; total: number; claims: Claim[] }>(`/api/projects/${projectId}/claims${qs}`);
   },
 
-  async deleteProject(projectId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}`, {
-      method: 'DELETE',
-    });
-    if (!res.ok) throw new Error('Failed to delete project');
-    return res.json();
-  },
+  verifyEvidence: (projectId: string) =>
+    request<{ success: boolean; verification: any }>(`/api/projects/${projectId}/verify-evidence`, {
+      method: 'POST',
+    }),
 
-  // Claims & Medical Review Gate
-  async getProjectClaims(projectId: string): Promise<Claim[]> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/claims`);
-    if (!res.ok) throw new Error('Failed to fetch claims');
-    return res.json();
-  },
-
-  async updateClaim(projectId: string, claimId: string, claimText: string, notes?: string): Promise<Claim> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/claims/${claimId}`, {
+  updateClaim: (claimId: string, data: Partial<Claim>) =>
+    request<{ success: boolean; claim: Claim }>(`/api/projects/claims/${claimId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ claim_text: claimText, reviewer_notes: notes }),
-    });
-    if (!res.ok) throw new Error('Failed to update claim');
-    return res.json();
-  },
+      body: JSON.stringify(data),
+    }),
 
-  async reviewClaim(
-    projectId: string,
-    claimId: string,
-    action: 'approve' | 'reject' | 'flag' | 'edit',
-    notes?: string,
-    reviewerRole: string = 'Medical Reviewer',
-    editedClaimText?: string
-  ): Promise<Claim> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/claims/${claimId}/review`, {
+  // Content Studio
+  generateCarousel: (projectId: string, slideCount: number = 6) =>
+    request<any>(`/api/projects/${projectId}/generate/carousel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action,
-        notes,
-        reviewer_role: reviewerRole,
-        edited_claim_text: editedClaimText,
-      }),
-    });
-    if (!res.ok) throw new Error('Failed to record review action');
-    return res.json();
-  },
+      body: JSON.stringify({ slide_count: slideCount }),
+    }),
 
-  // Draft & Media Generation
-  async getDraft(projectId: string): Promise<ContentDraft> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/draft`);
-    if (!res.ok) throw new Error('Failed to fetch content draft');
-    return res.json();
-  },
+  getCarousel: (projectId: string) => request<any>(`/api/projects/${projectId}/carousel`),
 
-  async updateDraft(projectId: string, payload: Partial<ContentDraft>): Promise<ContentDraft> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/draft`, {
+  generatePost: (projectId: string, customHeadline: string = '', customBody: string = '') =>
+    request<any>(`/api/projects/${projectId}/generate/post`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ custom_headline: customHeadline, custom_body: customBody }),
+    }),
+
+  getPost: (projectId: string) => request<any>(`/api/projects/${projectId}/post`),
+
+  // Feature 1: Two Stories
+  generateTwoStories: (projectId: string) =>
+    request<{ success: boolean; stories: TwoStoriesData }>(`/api/projects/${projectId}/generate/two-stories`, {
+      method: 'POST',
+    }),
+
+  getTwoStories: (projectId: string) => request<any>(`/api/projects/${projectId}/two-stories`),
+
+  // Feature 2: Inside Your Body
+  generateInsideBody: (projectId: string) =>
+    request<{ success: boolean; inside_body: InsideBodyData }>(`/api/projects/${projectId}/generate/inside-body`, {
+      method: 'POST',
+    }),
+
+  getInsideBody: (projectId: string) => request<any>(`/api/projects/${projectId}/inside-body`),
+
+  // Feature 3: LocalVoice
+  generateLocalVoice: (projectId: string, languageCode: string) =>
+    request<{ success: boolean; localvoice: any }>(`/api/projects/${projectId}/generate/localvoice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language_code: languageCode }),
+    }),
+
+  getLocalVoice: (projectId: string, languageCode: string) =>
+    request<any>(`/api/projects/${projectId}/localvoice?language_code=${languageCode}`),
+
+  getReelConfig: (projectId: string) => request<{ project_id: string; style: string; theme: string }>(`/api/projects/${projectId}/reel-config`),
+
+  updateReelConfig: (projectId: string, style: string, theme: string) =>
+    request<{ project_id: string; style: string; theme: string }>(`/api/projects/${projectId}/reel-config`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error('Failed to update draft');
-    return res.json();
-  },
+      body: JSON.stringify({ style, theme }),
+    }),
 
-  async generateCarousel(projectId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/generate-carousel`, {
-      method: 'POST',
-    });
-    if (!res.ok) throw new Error('Failed to render carousel');
-    return res.json();
-  },
-
-  async generateStatic(projectId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/generate-static`, {
-      method: 'POST',
-    });
-    if (!res.ok) throw new Error('Failed to render static post');
-    return res.json();
-  },
-
-  async generateReel(projectId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/generate-reel`, {
-      method: 'POST',
-    });
-    if (!res.ok) throw new Error('Failed to render video reel');
-    return res.json();
-  },
-
-  async getReelVoices(projectId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/reel-voices`);
-    if (!res.ok) throw new Error('Failed to fetch reel voices');
-    return res.json();
-  },
-
-  async updateReelConfig(
-    projectId: string,
-    config: { mode: string; visual_style: string; language: string; voice_name?: string; visual_theme?: string }
-  ): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/update-reel-config`, {
+  renderVideoReel: (projectId: string, reelMode: string, languageCode: string = 'en', style: string = 'auto_select', theme: string = 'steer') =>
+    request<any>(`/api/projects/${projectId}/render/video-reel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config),
-    });
-    if (!res.ok) throw new Error('Failed to update reel configuration');
-    return res.json();
-  },
+      body: JSON.stringify({ reel_mode: reelMode, language_code: languageCode, style, theme }),
+    }),
 
-  async regenerateScene(
-    projectId: string,
-    sceneNumber: number,
-    payload?: {
-      narration?: string;
-      subtitle_text?: string;
-      on_screen_text?: string;
-      visual_cue?: string;
-      visual_style?: string;
-      visual_theme?: string;
-      animation_action?: string;
-    }
-  ): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/regenerate-scene/${sceneNumber}`, {
+  testTtsVoice: (languageCode: string) =>
+    request<{
+      language_code: string;
+      success: boolean;
+      provider_used: string;
+      details: string;
+      test_phrase: string;
+      audio_url: string;
+      file_size_bytes: number;
+    }>(`/api/projects/tts/test-voice?language_code=${languageCode}`),
+
+  // Feature 4: PowerPoint Studio
+  generatePptx: (projectId: string) =>
+    request<any>(`/api/projects/${projectId}/generate/pptx`, {
+      method: 'POST',
+    }),
+
+  getPptx: (projectId: string) => request<any>(`/api/projects/${projectId}/pptx`),
+
+  // Feature 5: Doctor Review Gate
+  submitReview: (data: {
+    project_id: string;
+    target_type: string;
+    target_id: string;
+    decision: string;
+    reason_category?: string;
+    original_content?: string;
+    revised_content?: string;
+    comments?: string;
+    reviewer_name?: string;
+  }) =>
+    request<any>('/api/reviews/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload || {}),
-    });
-    if (!res.ok) throw new Error(`Failed to regenerate scene ${sceneNumber}`);
-    return res.json();
-  },
+      body: JSON.stringify(data),
+    }),
 
-  getReelSceneThumbnailUrl(projectId: string, sceneNumber: number): string {
-    return `${API_BASE}/api/projects/${projectId}/reel/scenes/${sceneNumber}/thumbnail`;
-  },
+  getReviews: (projectId: string) =>
+    request<{ project_id: string; reviews: ReviewRecord[] }>(`/api/projects/${projectId}/reviews`),
 
-  getReelSceneVideoUrl(projectId: string, sceneNumber: number): string {
-    return `${API_BASE}/api/projects/${projectId}/reel/scenes/${sceneNumber}/video`;
-  },
+  getReviewRules: () => request<{ rules: ReviewRule[] }>('/api/reviews/rules'),
 
-  async getReelManifest(projectId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/reel/manifest`);
-    if (!res.ok) throw new Error('Failed to fetch reel manifest');
-    return res.json();
-  },
-
-  async getCrossFormatChecks(projectId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/cross-format-checks`);
-    if (!res.ok) throw new Error('Failed to fetch cross-format claim checks');
-    return res.json();
-  },
-
-  async getOverclaimCheck(projectId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/overclaim-check`);
-    if (!res.ok) throw new Error('Failed to run overclaim check');
-    return res.json();
-  },
-
-  async approveContent(projectId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/approve-content`, { method: 'POST' });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: 'Content approval failed' }));
-      throw new Error(err.detail || 'Content approval failed');
-    }
-    return res.json();
-  },
-
-  async checkAssetQuality(projectId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/asset-quality-check`);
-    if (!res.ok) throw new Error('Failed to inspect rendered assets');
-    return res.json();
-  },
-
-  async checkEditorialFit(projectId: string, question: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/editorial-fit`, {
+  // Cross-Format Claim Safety
+  checkConsistency: (projectId: string) =>
+    request<{ success: boolean; results: any }>(`/api/projects/${projectId}/check-consistency`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question }),
-    });
-    if (!res.ok) throw new Error('Failed to assess source fit');
-    return res.json();
-  },
+    }),
 
-  // Artifacts & Exports
-  async listArtifacts(projectId: string): Promise<Artifact[]> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/artifacts`);
-    if (!res.ok) throw new Error('Failed to list artifacts');
-    return res.json();
-  },
+  getConsistencyChecks: (projectId: string) =>
+    request<{
+      project_id: string;
+      total: number;
+      critical_count: number;
+      is_publication_ready: boolean;
+      checks: ConsistencyCheck[];
+    }>(`/api/projects/${projectId}/consistency-checks`),
 
-  getArtifactFileUrl(artifactId: string, download: boolean = false): string {
-    return `${API_BASE}/api/artifacts/${artifactId}/file${download ? '?download=true' : ''}`;
-  },
-
-  async buildAllExports(projectId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/export/build-all`, {
-      method: 'POST',
-    });
-    if (!res.ok) throw new Error('Failed to build exports');
-    return res.json();
-  },
-
-  getPowerPointDownloadUrl(projectId: string): string {
-    return `${API_BASE}/api/projects/${projectId}/export/powerpoint`;
-  },
-
-  async generatePowerPoint(projectId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/export/powerpoint`, {
-      method: 'POST',
-    });
-    if (!res.ok) throw new Error('Failed to generate PowerPoint presentation');
-    return res.json();
-  },
-
-  async downloadPowerPointFile(projectId: string, defaultFilename?: string): Promise<void> {
-    // 1. Force backend generation & artifact registration
-    await this.generatePowerPoint(projectId);
-
-    // 2. Fetch the .pptx file as a blob
-    const downloadUrl = this.getPowerPointDownloadUrl(projectId);
-    const res = await fetch(downloadUrl);
-    if (!res.ok) {
-      throw new Error(`Failed to download presentation (Status ${res.status})`);
-    }
-
-    const blob = await res.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = defaultFilename || `Steer_Presentation_${projectId.slice(0, 8)}.pptx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(blobUrl);
-  },
-
-  async updateEffort(projectId: string, manualEditSec?: number, manualReviewSec?: number): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/effort`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        manual_edit_seconds: manualEditSec,
-        manual_review_seconds: manualReviewSec,
-      }),
-    });
-    if (!res.ok) throw new Error('Failed to update effort tracking');
-    return res.json();
-  },
+  // Export Center
+  exportProject: (projectId: string) => request<any>(`/api/projects/${projectId}/export`, { method: 'POST' }),
+  getExport: (projectId: string) => request<any>(`/api/projects/${projectId}/export`),
 };
-
