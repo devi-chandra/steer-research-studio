@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
-from app.models.models import Claim, ReviewAction, Project
+from app.models.models import Claim, ReviewAction, Project, ContentDraft
 
 class MedicalReviewService:
     @staticmethod
@@ -71,6 +71,14 @@ class MedicalReviewService:
                 project.stage_message = f"Medical review in progress ({sum(1 for c in all_claims if c.verification_status == 'approved')}/{len(all_claims)} approved)."
 
         db.commit()
+        # Claim edits/flags invalidate the currently generated content approval.
+        # The next export must be based on a newly reviewed content version.
+        draft = db.query(ContentDraft).filter(ContentDraft.project_id == project_id).first()
+        if draft and action in {"edit", "flag", "reject"}:
+            draft.version = (draft.version or 0) + 1
+            draft.review_status = "draft"
+            draft.approved_version = None
+            db.commit()
         db.refresh(claim)
         return claim
 

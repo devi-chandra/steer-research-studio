@@ -116,6 +116,10 @@ export interface ContentDraft {
   reel_data?: ReelData;
   created_at: string;
   updated_at: string;
+  version?: number;
+  review_status?: 'draft' | 'flagged' | 'approved' | string;
+  approved_version?: number;
+  metadata_json?: Record<string, any>;
 }
 
 export interface Artifact {

@@ -270,7 +270,12 @@ class VideoGenerationService:
             "-f", "lavfi",
             "-i", "sine=frequency=300:duration=5",
             "-af", "volume=0.05",
-            "-c:a", "aac",
+            # The fallback path writes an .mp3 file; using AAC here creates
+            # an MP4/AAC stream with the wrong container and breaks FFmpeg's
+            # next input pass when TTS is unavailable.
+            "-c:a", "libmp3lame",
+            "-q:a", "6",
+            "-f", "mp3",
             str(output_audio_path)
         ]
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

@@ -75,7 +75,7 @@ class AIProviderAdapter:
                 return await self._generate_content_with_gemini(paper_title, claims, campaign_topic)
             except Exception as e:
                 logger.error(f"Gemini content generation failed: {e}. Falling back to local engine.")
-                res = self._generate_content_with_local_engine(paper_title, claims, campaign_topic)
+                res = self._sanitize_local_content(self._generate_content_with_local_engine(paper_title, claims, campaign_topic), claims)
                 res["provider_notice"] = f"Gemini error ({str(e)}). Generated via local engine."
                 return res
 
@@ -84,11 +84,51 @@ class AIProviderAdapter:
                 return await self._generate_content_with_openai(paper_title, claims, campaign_topic)
             except Exception as e:
                 logger.error(f"OpenAI content generation failed: {e}. Falling back to local engine.")
-                res = self._generate_content_with_local_engine(paper_title, claims, campaign_topic)
+                res = self._sanitize_local_content(self._generate_content_with_local_engine(paper_title, claims, campaign_topic), claims)
                 res["provider_notice"] = f"OpenAI error ({str(e)}). Generated via local engine."
                 return res
 
-        return self._generate_content_with_local_engine(paper_title, claims, campaign_topic)
+        return self._sanitize_local_content(
+            self._generate_content_with_local_engine(paper_title, claims, campaign_topic), claims
+        )
+
+    def _sanitize_local_content(self, content: Dict[str, Any], claims: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Keep offline fallback copy bounded by the extracted evidence.
+
+        The local engine is a demo fallback, not a second clinical knowledge
+        base. Remove common unsupported extrapolations before they reach a
+        rendered asset.
+        """
+        unsafe_replacements = {
+            "clears blood sugar before it turns into visceral fat": "is discussed in the study's measured context",
+            "protects your pancreas from exhaustion over time": "should not be treated as a promise about long-term outcomes",
+            "modern endocrinology just proved them right": "the study reports a finding in its tested population",
+            "stored as liver fat": "not established by this study",
+            "prescribing 100 paces after dinner instead of another pill": "asking what the evidence actually measured",
+            "outsmarts your dinner spike": "the study finding worth understanding",
+            "beats a delayed 30-minute workout": "was compared with a different timing condition",
+        }
+
+        def clean(value: Any) -> Any:
+            if isinstance(value, str):
+                result = value
+                for old, new in unsafe_replacements.items():
+                    result = re.sub(re.escape(old), new, result, flags=re.IGNORECASE)
+                return result
+            if isinstance(value, list):
+                return [clean(v) for v in value]
+            if isinstance(value, dict):
+                return {k: clean(v) for k, v in value.items()}
+            return value
+
+        cleaned = clean(content)
+        cleaned.setdefault("editorial_safety", {})
+        cleaned["editorial_safety"].update({
+            "fallback_mode": True,
+            "notice": "Offline copy is evidence-bounded and still requires human clinical review.",
+            "claim_ids": [c.get("claim_id") for c in claims],
+        })
+        return cleaned
 
     # -------------------------------------------------------------
     # Gemini Implementation

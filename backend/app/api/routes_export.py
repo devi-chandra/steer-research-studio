@@ -19,6 +19,9 @@ def build_all_exports(project_id: str, db: Session = Depends(get_db)):
 
     claims = db.query(Claim).filter(Claim.project_id == project_id).order_by(Claim.claim_id).all()
     draft = db.query(ContentDraft).filter(ContentDraft.project_id == project_id).first()
+    # Draft exports remain available for review/demo, but are explicitly
+    # provisional until the exact content version is approved.
+    provisional_export = bool(draft and (draft.review_status != "approved" or draft.approved_version != draft.version))
     effort = effort_tracking_service.get_or_create_effort_record(db, project_id)
 
     export_dir = settings.generated_dir / project_id / "exports"
@@ -108,7 +111,9 @@ def build_all_exports(project_id: str, db: Session = Depends(get_db)):
     return {
         "status": "success",
         "exported_count": len(created_artifacts),
-        "message": "All export packages including PowerPoint generated successfully."
+        "message": "Provisional export generated; publish only after explicit content approval." if provisional_export else "All export packages including PowerPoint generated successfully.",
+        "provisional": provisional_export,
+        "approved_version": draft.approved_version if draft else None,
     }
 
 @router.get("/powerpoint")

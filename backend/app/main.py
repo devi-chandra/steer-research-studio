@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.core.database import engine, Base
+from app.core.database import engine, Base, ensure_schema_compatibility
 from app.api.routes_projects import router as projects_router
 from app.api.routes_claims import router as claims_router
 from app.api.routes_content import router as content_router
@@ -15,6 +15,7 @@ from app.api.routes_settings import router as settings_router
 
 # Create SQLite database tables
 Base.metadata.create_all(bind=engine)
+ensure_schema_compatibility()
 
 from contextlib import asynccontextmanager
 

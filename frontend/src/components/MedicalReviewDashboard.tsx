@@ -41,6 +41,7 @@ export const MedicalReviewDashboard: React.FC<MedicalReviewDashboardProps> = ({
   const [crossFormatAudit, setCrossFormatAudit] = useState<any | null>(null);
   const [isLoadingAudit, setIsLoadingAudit] = useState<boolean>(false);
   const [showAuditDetails, setShowAuditDetails] = useState<boolean>(true);
+  const [isApprovingContent, setIsApprovingContent] = useState<boolean>(false);
 
   useEffect(() => {
     setIsLoadingAudit(true);
@@ -94,6 +95,19 @@ export const MedicalReviewDashboard: React.FC<MedicalReviewDashboardProps> = ({
     if (currentClaim) {
       setEditedText(currentClaim.claim_text);
       setIsEditing(true);
+    }
+  };
+
+  const handleApproveContent = async () => {
+    setIsApprovingContent(true);
+    try {
+      const result = await api.approveContent(project.id);
+      setActionSuccess(`Content version ${result.version} approved for export.`);
+      onClaimUpdated();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsApprovingContent(false);
     }
   };
 
@@ -259,7 +273,7 @@ export const MedicalReviewDashboard: React.FC<MedicalReviewDashboardProps> = ({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-ink)' }}>
-                      {chk.label}
+                    {chk.label || chk.name}
                     </span>
                     <span
                       style={{
@@ -275,7 +289,7 @@ export const MedicalReviewDashboard: React.FC<MedicalReviewDashboardProps> = ({
                     </span>
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--color-ink-muted)', lineHeight: 1.4 }}>
-                    {chk.details}
+                    {chk.details || chk.explanation}
                   </div>
                 </div>
               ))}
@@ -283,6 +297,25 @@ export const MedicalReviewDashboard: React.FC<MedicalReviewDashboardProps> = ({
           )}
         </div>
       )}
+
+      <div className="steer-card" style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+        <div>
+          <strong style={{ color: 'var(--color-ink)' }}>Content version {project.content_drafts?.[0]?.version || 1}</strong>
+          <div style={{ fontSize: '12px', color: 'var(--color-clay)', marginTop: '4px' }}>
+            Approval applies to this exact carousel, static post, reel, and caption version.
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleApproveContent}
+          disabled={isApprovingContent || pendingCount > 0 || flaggedCount > 0 || rejectedCount > 0 || !!(crossFormatAudit?.summary?.flagged_checks)}
+          className="btn-primary"
+          style={{ background: '#2E7D32', borderColor: '#1B5E20' }}
+        >
+          <FileCheck size={16} />
+          <span>{isApprovingContent ? 'Approving…' : 'Approve content version for export'}</span>
+        </button>
+      </div>
 
       {/* Main Review Workspace: Claim Selector + Detailed Review Workbench */}
       <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '24px' }}>

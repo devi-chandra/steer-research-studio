@@ -229,6 +229,37 @@ export const api = {
     return res.json();
   },
 
+  async getOverclaimCheck(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/projects/${projectId}/overclaim-check`);
+    if (!res.ok) throw new Error('Failed to run overclaim check');
+    return res.json();
+  },
+
+  async approveContent(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/projects/${projectId}/approve-content`, { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Content approval failed' }));
+      throw new Error(err.detail || 'Content approval failed');
+    }
+    return res.json();
+  },
+
+  async checkAssetQuality(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/projects/${projectId}/asset-quality-check`);
+    if (!res.ok) throw new Error('Failed to inspect rendered assets');
+    return res.json();
+  },
+
+  async checkEditorialFit(projectId: string, question: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/projects/${projectId}/editorial-fit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question }),
+    });
+    if (!res.ok) throw new Error('Failed to assess source fit');
+    return res.json();
+  },
+
   // Artifacts & Exports
   async listArtifacts(projectId: string): Promise<Artifact[]> {
     const res = await fetch(`${API_BASE}/api/projects/${projectId}/artifacts`);

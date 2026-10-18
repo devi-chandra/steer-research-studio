@@ -15,6 +15,7 @@ from app.services.url_ingestion import URLIngestionService
 from app.services.ai_provider import ai_provider_service
 from app.services.evidence_tracking import EvidenceTrackingService
 from app.services.effort_tracking import effort_tracking_service
+from app.services.overclaim_check import build_editorial_brief, overclaim_check_service
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -227,7 +228,11 @@ async def process_project_pipeline(project_id: str, db: Session = Depends(get_db
                 "claim_id": c.claim_id,
                 "claim_text": c.claim_text,
                 "evidence_quote": c.evidence_quote,
-                "limitations": c.limitations
+                "limitations": c.limitations,
+                "uncertainty_notes": c.uncertainty_notes,
+                "evidence_type": c.evidence_type,
+                "population": c.population,
+                "sample_size": c.sample_size,
             }
             for c in persisted_claims
         ]
@@ -255,8 +260,21 @@ async def process_project_pipeline(project_id: str, db: Session = Depends(get_db
             claim_ids=steer_content.get("claim_ids", [c.claim_id for c in persisted_claims]),
             slide_data=steer_content.get("carousel", {}).get("slides", []),
             static_data=steer_content.get("static_post", {}),
-            reel_data=steer_content.get("reel", {})
+            reel_data=steer_content.get("reel", {}),
+            version=1,
+            review_status="draft",
+            metadata_json={}
         )
+        editorial_brief = build_editorial_brief(
+            persisted_claims, project.campaign_topic, project.paper_metadata or {}
+        )
+        draft.metadata_json = {
+            "editorial_brief": editorial_brief,
+            "overclaim_report": overclaim_check_service.audit(
+                draft, persisted_claims, project.paper_metadata or {}
+            ),
+            "provider_info": steer_content.get("provider_info"),
+        }
         db.add(draft)
 
         # Update project status

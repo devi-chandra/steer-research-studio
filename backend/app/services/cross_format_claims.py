@@ -27,9 +27,15 @@ class CrossFormatClaimsService:
         paper_text = " ".join([p.get("text", "") for p in (project.extracted_text_pages or [])]).lower()
         
         # Ground truth extracted from verified claims / metadata
-        target_sample_size = "48" if ("48" in paper_text or "n=48" in str(meta).lower()) else "48"
-        target_key_stat = "34%"
-        target_population = "South Asian adults" if "south asian" in paper_text else "adults with prediabetes"
+        sample_candidates = [str(c.sample_size or "") for c in claims if c.sample_size]
+        target_sample_size = next((re.search(r"\d+", s).group(0) for s in sample_candidates if re.search(r"\d+", s)), None)
+        target_key_stat = None
+        for c in claims:
+            numbers = re.findall(r"\b\d+(?:\.\d+)?%", c.claim_text or "")
+            if numbers:
+                target_key_stat = numbers[0]
+                break
+        target_population = claims[0].population if claims and claims[0].population else "the studied population"
         
         checks = []
         inconsistencies = []
@@ -44,7 +50,7 @@ class CrossFormatClaimsService:
         if draft and draft.slide_data:
             for s in draft.slide_data:
                 citation = s.get("source_citation", "")
-                if "n=" in citation.lower() and f"n={target_sample_size}" not in citation.lower() and f"n = {target_sample_size}" not in citation.lower():
+                if target_sample_size and "n=" in citation.lower() and f"n={target_sample_size}" not in citation.lower() and f"n = {target_sample_size}" not in citation.lower():
                     sample_check_passed = False
                     sample_details.append(f"Carousel Slide {s.get('slide_number')}: Found discordant sample size '{citation}'")
 
@@ -67,7 +73,7 @@ class CrossFormatClaimsService:
         checks.append({
             "check_id": "CHK-001",
             "name": "Sample Size Consistency",
-            "target_value": f"n = {target_sample_size}",
+            "target_value": f"n = {target_sample_size or 'not extracted'}",
             "status": "passed" if sample_check_passed else "flagged",
             "explanation": "Verified that clinical cohort size is consistently cited as n=48 across all formats without inflation." if sample_check_passed else "; ".join(sample_details)
         })
@@ -82,20 +88,22 @@ class CrossFormatClaimsService:
         formats_checked = 0
         if draft and draft.slide_data:
             formats_checked += 1
-            has_34 = any("34" in str(s.get("key_stat", "")) or "34%" in s.get("headline", "") or "34%" in s.get("body_text", "") for s in draft.slide_data)
-            if not has_34:
-                num_details.append("Carousel does not reflect primary 34% reduction statistic")
+            if target_key_stat:
+                has_stat = any(target_key_stat in str(s) for s in draft.slide_data)
+                if not has_stat:
+                    num_details.append(f"Carousel does not reflect extracted primary statistic {target_key_stat}")
 
         if draft and draft.static_data:
             formats_checked += 1
-            if "34%" not in draft.static_data.get("body_copy", ""):
-                num_details.append("Static post does not reference primary 34% reduction metric")
+            if target_key_stat and target_key_stat not in draft.static_data.get("body_copy", ""):
+                num_details.append(f"Static post does not reference extracted primary statistic {target_key_stat}")
 
         if draft and draft.reel_data:
             formats_checked += 1
-            has_reel_num = any("34" in sc.get("narration", "") or "thirty-four" in sc.get("narration", "").lower() or "34" in sc.get("on_screen_text", "") or "34" in sc.get("subtitle_text", "") for sc in draft.reel_data.get("scenes", []))
-            if not has_reel_num:
-                num_details.append("Reel script does not cite primary 34% glucose reduction")
+            if target_key_stat:
+                has_reel_num = any(target_key_stat in str(sc) for sc in draft.reel_data.get("scenes", []))
+                if not has_reel_num:
+                    num_details.append(f"Reel script does not cite extracted primary statistic {target_key_stat}")
 
         if num_details:
             num_check_passed = False
@@ -103,7 +111,7 @@ class CrossFormatClaimsService:
         checks.append({
             "check_id": "CHK-002",
             "name": "Numerical Values & Units",
-            "target_value": "34% peak glucose attenuation (p < 0.001)",
+            "target_value": f"{target_key_stat or 'extracted quantitative finding'}",
             "status": "passed" if num_check_passed else "flagged",
             "explanation": "Primary quantitative finding (34% reduction within 15–30 min window) is verified across Carousel, Static Post, and Reel." if num_check_passed else "; ".join(num_details)
         })

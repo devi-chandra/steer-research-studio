@@ -11,7 +11,9 @@ import {
   RotateCw,
   Layers,
   Sparkles,
-  Presentation
+  Presentation,
+  ScanEye,
+  CircleHelp
 } from 'lucide-react';
 import { Project, Artifact } from '../types';
 import { api } from '../services/api';
@@ -28,6 +30,10 @@ export const ExportCenter: React.FC<ExportCenterProps> = ({
   const [isBuilding, setIsBuilding] = useState<boolean>(false);
   const [buildSuccess, setBuildSuccess] = useState<string | null>(null);
   const [isDownloadingPptx, setIsDownloadingPptx] = useState<boolean>(false);
+  const [isCheckingAssets, setIsCheckingAssets] = useState(false);
+  const [assetReport, setAssetReport] = useState<any | null>(null);
+  const [fitReport, setFitReport] = useState<any | null>(null);
+  const [isCheckingFit, setIsCheckingFit] = useState(false);
 
   const artifacts = project.artifacts || [];
   const claims = project.claims || [];
@@ -57,6 +63,28 @@ export const ExportCenter: React.FC<ExportCenterProps> = ({
     } catch (err: any) {
       setIsDownloadingPptx(false);
       alert(`PowerPoint download failed: ${err.message}`);
+    }
+  };
+
+  const handleAssetCheck = async () => {
+    setIsCheckingAssets(true);
+    try {
+      setAssetReport(await api.checkAssetQuality(project.id));
+    } catch (err: any) {
+      alert(`Asset check failed: ${err.message}`);
+    } finally {
+      setIsCheckingAssets(false);
+    }
+  };
+
+  const handleUnsupportedQuestionDemo = async () => {
+    setIsCheckingFit(true);
+    try {
+      setFitReport(await api.checkEditorialFit(project.id, 'Does tapering semaglutide prevent weight regain?'));
+    } catch (err: any) {
+      alert(`Source fit check failed: ${err.message}`);
+    } finally {
+      setIsCheckingFit(false);
     }
   };
 
@@ -102,6 +130,50 @@ export const ExportCenter: React.FC<ExportCenterProps> = ({
             <RotateCw size={16} className={isBuilding ? 'pulse-glow' : ''} />
             <span>{isBuilding ? 'Compiling Export Packages...' : 'Compile All Export Packages'}</span>
           </button>
+        </div>
+
+        <div style={{ marginTop: '18px', paddingTop: '16px', borderTop: '1px solid var(--color-blush)' }}>
+          <button type="button" onClick={handleAssetCheck} disabled={isCheckingAssets} className="btn-secondary">
+            <ScanEye size={16} />
+            <span>{isCheckingAssets ? 'Checking files…' : 'Run rendered asset checks'}</span>
+          </button>
+          {assetReport && (
+            <div style={{ marginTop: '12px', padding: '14px', borderRadius: 'var(--radius-md)', background: '#FFF9F4', border: '1px solid var(--color-blush)' }}>
+              <strong style={{ color: 'var(--color-ink)' }}>
+                Automated file checks: {assetReport.overall_status === 'passed' ? 'passed' : `${assetReport.flagged_assets} item(s) need review`}
+              </strong>
+              <p style={{ fontSize: '12px', lineHeight: 1.5, color: 'var(--color-ink-muted)', margin: '6px 0 10px' }}>{assetReport.limits}</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {assetReport.reports?.map((item: any, index: number) => (
+                  <span key={`${item.asset_type}-${index}`} className={`badge-tag ${item.status === 'passed' ? 'badge-approved' : 'badge-pending'}`}>
+                    {item.asset_type} · {item.status}{item.size ? ` · ${item.size.join('×')}` : ''}
+                  </span>
+                ))}
+              </div>
+              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-rust)', marginTop: '10px' }}>
+                Please inspect every slide and subtitle visually before submission.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--color-blush)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: 'var(--color-ink)' }}>
+            <CircleHelp size={16} color="var(--color-rust)" />
+            <strong style={{ fontSize: '13px' }}>Demo the source boundary</strong>
+          </div>
+          <button type="button" onClick={handleUnsupportedQuestionDemo} disabled={isCheckingFit} className="btn-secondary">
+            {isCheckingFit ? 'Checking source…' : 'Ask a question this paper may not answer'}
+          </button>
+          {fitReport && (
+            <div role="status" style={{ marginTop: '10px', padding: '12px 14px', background: fitReport.answerability === 'supported' ? '#FBFDFB' : '#FFF8E1', border: `1px solid ${fitReport.answerability === 'supported' ? '#C8E6C9' : '#FFE082'}`, borderRadius: 'var(--radius-md)' }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: fitReport.answerability === 'supported' ? '#1B5E20' : '#9A5B00' }}>
+                {fitReport.answerability === 'supported' ? 'Related evidence found' : 'This source does not answer that question'}
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--color-ink)', margin: '5px 0' }}>{fitReport.refusal_message || 'Review the matched claims and their limitations before using this source.'}</p>
+              <small style={{ color: 'var(--color-clay)' }}>Topic overlap is a routing signal only; clinician review is still needed.</small>
+            </div>
+          )}
         </div>
 
         {buildSuccess && (

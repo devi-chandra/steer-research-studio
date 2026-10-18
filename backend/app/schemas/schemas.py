@@ -191,6 +191,10 @@ class ContentDraftResponse(BaseModel):
     reel_data: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
+    version: int = 1
+    review_status: str = "draft"
+    approved_version: Optional[int] = None
+    metadata_json: Dict[str, Any] = {}
 
     class Config:
         from_attributes = True

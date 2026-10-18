@@ -95,6 +95,12 @@ class ContentDraft(Base):
     slide_data = Column(JSON, nullable=True)  # For carousel: list of {slide_num, title, subtitle, body, takeaway, quote, citation}
     static_data = Column(JSON, nullable=True)  # For static post: {headline, subhead, body, takeaway, badge, citation}
     reel_data = Column(JSON, nullable=True)  # For reel: {scenes: [{scene_num, visual_cue, narration, on_screen_text, duration_sec, claim_ids}]}
+
+    # Versioned editorial safety state. A content edit invalidates approval.
+    version = Column(Integer, default=1, nullable=False)
+    review_status = Column(String(30), default="draft", nullable=False)  # draft, flagged, approved
+    approved_version = Column(Integer, nullable=True)
+    metadata_json = Column(JSON, default=dict)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -6,16 +6,38 @@ from typing import Dict, Any, Optional
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.models import Project, ContentDraft, Artifact
+from app.models.models import Project, ContentDraft, Artifact, Claim
 from app.services.carousel_renderer import carousel_renderer
 from app.services.static_post_renderer import static_post_renderer
 from app.services.video_generation import video_generation_service
 from app.services.media_assembly import media_assembly_service
 from app.services.effort_tracking import effort_tracking_service
 from app.services.ai_provider import ai_provider_service
+from app.services.overclaim_check import overclaim_check_service
+from app.services.overclaim_check import assess_question_fit
+from app.services.asset_quality import asset_quality_service
 from app.schemas.schemas import ReelGenerateRequest, ReelSceneUpdateRequest
 
 router = APIRouter(prefix="/api/projects/{project_id}", tags=["content"])
+
+@router.post("/editorial-fit")
+def check_editorial_fit(project_id: str, payload: Dict[str, str] = Body(...), db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    question = (payload.get("question") or "").strip()
+    if not question:
+        raise HTTPException(status_code=422, detail="Provide an audience question")
+    claims = db.query(Claim).filter(Claim.project_id == project_id).all()
+    return {"question": question, **assess_question_fit(question, claims),
+            "note": "Topic overlap is a rough routing signal. A clinician must still judge whether the evidence answers the question."}
+
+@router.get("/asset-quality-check")
+def check_rendered_assets(project_id: str, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return asset_quality_service.inspect_project(settings.generated_dir / project_id)
 
 @router.get("/draft")
 def get_draft(project_id: str, db: Session = Depends(get_db)):
@@ -26,6 +48,9 @@ def get_draft(project_id: str, db: Session = Depends(get_db)):
 
 @router.put("/draft")
 def update_draft(project_id: str, payload: Dict[str, Any] = Body(...), db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     draft = db.query(ContentDraft).filter(ContentDraft.project_id == project_id).first()
     if not draft:
         raise HTTPException(status_code=404, detail="No content draft found for this project.")
@@ -34,9 +59,54 @@ def update_draft(project_id: str, payload: Dict[str, Any] = Body(...), db: Sessi
         if field in payload:
             setattr(draft, field, payload[field])
 
+    # Any content edit creates a new reviewable version. Approval never follows
+    # changed copy silently.
+    draft.version = (draft.version or 0) + 1
+    draft.review_status = "draft"
+    draft.approved_version = None
+    claims = db.query(Claim).filter(Claim.project_id == project_id).all()
+    report = overclaim_check_service.audit(draft, claims, project.paper_metadata or {})
+    metadata = dict(draft.metadata_json or {})
+    metadata["overclaim_report"] = report
+    draft.metadata_json = metadata
+
     db.commit()
     db.refresh(draft)
     return draft
+
+@router.get("/overclaim-check")
+def get_overclaim_check(project_id: str, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    draft = db.query(ContentDraft).filter(ContentDraft.project_id == project_id).first()
+    if not project or not draft:
+        raise HTTPException(status_code=404, detail="Project or content draft not found")
+    claims = db.query(Claim).filter(Claim.project_id == project_id).all()
+    report = overclaim_check_service.audit(draft, claims, project.paper_metadata or {})
+    metadata = dict(draft.metadata_json or {})
+    metadata["overclaim_report"] = report
+    draft.metadata_json = metadata
+    db.commit()
+    return report
+
+@router.post("/approve-content")
+def approve_content(project_id: str, db: Session = Depends(get_db)):
+    """Approve the exact generated content version after the claim gate passes."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    draft = db.query(ContentDraft).filter(ContentDraft.project_id == project_id).first()
+    claims = db.query(Claim).filter(Claim.project_id == project_id).all()
+    if not project or not draft:
+        raise HTTPException(status_code=404, detail="Project or content draft not found")
+    if any(c.verification_status != "approved" for c in claims):
+        raise HTTPException(status_code=409, detail="Every claim must be explicitly approved before content approval.")
+    report = overclaim_check_service.audit(draft, claims, project.paper_metadata or {})
+    if report["flagged_checks"]:
+        raise HTTPException(status_code=409, detail="Resolve overclaim warnings before approving content.")
+    draft.review_status = "approved"
+    draft.approved_version = draft.version
+    project.status = "approved"
+    project.stage_message = f"Content version {draft.version} approved for export."
+    db.commit()
+    return {"status": "approved", "version": draft.version}
 
 @router.post("/generate-carousel")
 def generate_carousel(project_id: str, db: Session = Depends(get_db)):

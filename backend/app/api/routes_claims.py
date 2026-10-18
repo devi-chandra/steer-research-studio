@@ -77,4 +77,16 @@ def get_cross_format_checks(project_id: str, db: Session = Depends(get_db)):
     draft = db.query(ContentDraft).filter(ContentDraft.project_id == project_id).first()
     claims = db.query(Claim).filter(Claim.project_id == project_id).order_by(Claim.claim_id).all()
 
-    return cross_format_claims_service.audit_project_consistency(project=project, draft=draft, claims=claims)
+    report = cross_format_claims_service.audit_project_consistency(project=project, draft=draft, claims=claims)
+    from app.services.overclaim_check import overclaim_check_service
+    overclaim = overclaim_check_service.audit(draft, claims, project.paper_metadata or {}) if draft else None
+    if overclaim:
+        report["checks"].extend(overclaim["checks"])
+        report["summary"] = {
+            "total_checks": len(report["checks"]),
+            "passed_checks": sum(1 for c in report["checks"] if c["status"] == "passed"),
+            "flagged_checks": sum(1 for c in report["checks"] if c["status"] == "flagged"),
+        }
+        report["overall_status"] = "review_required" if report["summary"]["flagged_checks"] else "passed"
+        report["overclaim_disclaimer"] = overclaim["disclaimer"]
+    return report
