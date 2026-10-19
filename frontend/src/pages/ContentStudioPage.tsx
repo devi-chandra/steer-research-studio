@@ -268,26 +268,28 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ currentPro
         <div>
           <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#C04E2A] uppercase tracking-wider mb-1">
             <Sparkles className="w-3.5 h-3.5" />
-            Core Deliverables Studio
+            Create from your research
           </div>
           <h1 className="font-serif text-3xl font-bold text-[#661414]">
-            Content Generation Studio
+            Create content
           </h1>
-          <p className="text-xs text-[#351D1D]/75">
-            Single verified source: <span className="font-semibold text-[#351D1D]">{currentProject.title}</span>
+          <p className="text-xs text-[#351D1D]/75 mt-1">
+            Choose a format below, generate it, then preview and download. Based on: <span className="font-semibold text-[#351D1D]">{currentProject.title}</span>
           </p>
         </div>
 
         {actionMessage && (
-          <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-xs">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <div role="status" className={`${actionMessage.startsWith('Failed') ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-emerald-50 border-emerald-300 text-emerald-900'} border px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-xs`}>
+            {actionMessage.startsWith('Failed')
+              ? <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              : <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
             <span>{actionMessage}</span>
           </div>
         )}
       </div>
 
       {/* Navigation Sub-Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-[#E6CBBD] pb-2">
+      <div className="flex flex-wrap gap-2 border-b border-[#E6CBBD] pb-3" role="group" aria-label="Choose a content format">
         <button
           onClick={() => setSubTab('carousel')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition ${
@@ -297,7 +299,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ currentPro
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          Instagram Carousel (5.1)
+          Carousel
         </button>
 
         <button
@@ -309,7 +311,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ currentPro
           }`}
         >
           <ImageIcon className="w-3.5 h-3.5" />
-          Static Post (5.2)
+          Static post
         </button>
 
         <button
@@ -321,7 +323,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ currentPro
           }`}
         >
           <Sparkles className="w-3.5 h-3.5" />
-          Two Stories (Feature 1)
+          Two stories
         </button>
 
         <button
@@ -333,7 +335,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ currentPro
           }`}
         >
           <Activity className="w-3.5 h-3.5" />
-          Inside Your Body (Feature 2)
+          Body explainer
         </button>
 
         <button
@@ -345,7 +347,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ currentPro
           }`}
         >
           <Languages className="w-3.5 h-3.5" />
-          LocalVoice (Feature 3)
+          Local voice
         </button>
 
         <button
@@ -357,7 +359,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ currentPro
           }`}
         >
           <Video className="w-3.5 h-3.5" />
-          Video Reel Player (5.3)
+          Reel
         </button>
 
         <button
@@ -369,7 +371,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ currentPro
           }`}
         >
           <FileText className="w-3.5 h-3.5" />
-          Captions & Citations
+          Captions & sources
         </button>
       </div>
 

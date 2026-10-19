@@ -152,13 +152,13 @@ export const ReviewGatePage: React.FC<ReviewGatePageProps> = ({ currentProject, 
         <div>
           <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#C04E2A] uppercase tracking-wider mb-1">
             <ShieldCheck className="w-3.5 h-3.5" />
-            Differentiator Feature 5
+            Simulated review workflow
           </div>
           <h1 className="font-serif text-3xl font-bold text-[#661414]">
-            Medical Review Gate & Feedback Loop (Simulated Demo)
+            Review claims
           </h1>
           <p className="text-xs text-[#351D1D]/75">
-            Simulated clinician review workflow: Every health claim must have traceable evidence and an explicit review decision before publication approval.
+            Select a claim, compare it with its source quote, then record a demo decision. This is not real clinical approval.
           </p>
         </div>
 
@@ -187,9 +187,10 @@ export const ReviewGatePage: React.FC<ReviewGatePageProps> = ({ currentProject, 
         <div className="md:col-span-5 bg-[#FFFFFF] border border-[#E6CBBD] rounded-2xl p-5 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-[#661414] uppercase tracking-wider">
-              Claims for Clinical Audit ({claims.length})
+              Claims to review ({claims.length})
             </span>
           </div>
+          <p className="text-[11px] text-[#351D1D]/70">Choose a claim to see its source quotation and review options.</p>
 
           <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
             {claims.map((c) => {
@@ -227,7 +228,7 @@ export const ReviewGatePage: React.FC<ReviewGatePageProps> = ({ currentProject, 
               <div className="flex items-center justify-between border-b border-[#E6CBBD] pb-4">
                 <div>
                   <span className="font-mono font-bold text-sm bg-[#661414] text-[#F5EBDF] px-2.5 py-1 rounded">
-                    Auditing: {selectedClaim.claim_id}
+                  Reviewing: {selectedClaim.claim_id}
                   </span>
                   <div className="text-xs text-[#B58777] mt-1">
                     Page {selectedClaim.page_number} • Section: {selectedClaim.section_heading}
@@ -240,7 +241,7 @@ export const ReviewGatePage: React.FC<ReviewGatePageProps> = ({ currentProject, 
               <div className="bg-[#F8F2EB] border border-[#E6CBBD] rounded-xl p-3.5 space-y-1.5">
                 <div className="text-[11px] font-bold text-[#661414] flex items-center gap-1.5">
                   <Quote className="w-3.5 h-3.5 text-[#C04E2A]" />
-                  Original Supporting Source Quotation
+                  Source quotation
                 </div>
                 <p className="text-xs font-serif italic text-[#351D1D] bg-white p-2.5 rounded border border-[#E6CBBD] leading-relaxed">
                   "{selectedClaim.exact_quote}"
@@ -250,7 +251,7 @@ export const ReviewGatePage: React.FC<ReviewGatePageProps> = ({ currentProject, 
               {/* Decision Options */}
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-[#661414] uppercase tracking-wider">
-                  Simulated Review Decision
+                  Choose a demo decision
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {[
@@ -313,7 +314,7 @@ export const ReviewGatePage: React.FC<ReviewGatePageProps> = ({ currentProject, 
               {/* Simulated Review Notes */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-[#661414] uppercase tracking-wider">
-                  Simulated Reviewer Notes & Justification
+                  Reviewer notes (demo)
                 </label>
                 <textarea
                   value={comments}
@@ -330,7 +331,7 @@ export const ReviewGatePage: React.FC<ReviewGatePageProps> = ({ currentProject, 
                   disabled={isSubmitting}
                   className="px-6 py-2.5 rounded-xl bg-[#661414] text-[#F5EBDF] text-xs font-bold hover:bg-[#351D1D] shadow transition"
                 >
-                  {isSubmitting ? 'Recording Decision...' : 'Submit Simulated Decision'}
+                  {isSubmitting ? 'Saving decision…' : 'Save demo decision'}
                 </button>
               </div>
             </form>
@@ -345,10 +346,10 @@ export const ReviewGatePage: React.FC<ReviewGatePageProps> = ({ currentProject, 
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-serif text-base font-bold text-[#661414]">
-                  Active Review Rules (Learned From Clinical Feedback)
+                  Review guidance
                 </h3>
                 <p className="text-xs text-[#351D1D]/70 mt-0.5">
-                  Rules persisted from prior doctor revisions to automatically flag overclaims in future content.
+                  Illustrative rules based on the decisions recorded in this demo. They are not clinical guidance.
                 </p>
               </div>
               <span className="font-mono text-xs bg-[#E6CBBD]/40 text-[#661414] px-2.5 py-1 rounded font-bold">

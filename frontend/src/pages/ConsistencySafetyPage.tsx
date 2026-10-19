@@ -22,7 +22,8 @@ interface ConsistencySafetyPageProps {
 export const ConsistencySafetyPage: React.FC<ConsistencySafetyPageProps> = ({ currentProject, onNavigate }) => {
   const [checks, setChecks] = useState<ConsistencyCheck[]>([]);
   const [criticalCount, setCriticalCount] = useState(0);
-  const [isReady, setIsReady] = useState(true);
+  const [isReady, setIsReady] = useState<boolean | null>(null);
+  const [hasScanned, setHasScanned] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
 
@@ -33,6 +34,7 @@ export const ConsistencySafetyPage: React.FC<ConsistencySafetyPageProps> = ({ cu
       setChecks(res.checks);
       setCriticalCount(res.critical_count);
       setIsReady(res.is_publication_ready);
+      setHasScanned(res.total > 0);
     } catch (err) {
       console.error(err);
     }
@@ -51,6 +53,7 @@ export const ConsistencySafetyPage: React.FC<ConsistencySafetyPageProps> = ({ cu
       setChecks(res.results.discrepancies);
       setCriticalCount(res.results.critical_issues);
       setIsReady(res.results.is_publication_ready);
+      setHasScanned(true);
       setScanMessage(`Scan complete: ${res.results.total_discrepancies_found} potential flags assessed across 5 formats.`);
     } catch (err: any) {
       setScanMessage('Consistency scan failed: ' + err.message);
@@ -83,13 +86,13 @@ export const ConsistencySafetyPage: React.FC<ConsistencySafetyPageProps> = ({ cu
         <div>
           <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#C04E2A] uppercase tracking-wider mb-1">
             <ShieldCheck className="w-3.5 h-3.5" />
-            Section 11 • Medical Integrity Engine
+            Automated quality check
           </div>
           <h1 className="font-serif text-3xl font-bold text-[#661414]">
-            Cross-Format Claim Safety
+            Check content consistency
           </h1>
           <p className="text-xs text-[#351D1D]/75">
-            Automated verification verifying that numbers, units, denominators, and limitations match perfectly across Carousel, Static Post, Reels, and PowerPoint.
+            Compare numbers, units and limitations across generated formats. This checks consistency—not scientific truth or clinician approval.
           </p>
         </div>
 
@@ -99,64 +102,71 @@ export const ConsistencySafetyPage: React.FC<ConsistencySafetyPageProps> = ({ cu
           className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#661414] text-[#F5EBDF] text-xs font-bold hover:bg-[#351D1D] shadow transition"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          {isLoading ? 'Scanning Deliverables...' : 'Run Cross-Format Safety Scan'}
+          {isLoading ? 'Checking your content…' : 'Run consistency check'}
         </button>
       </div>
 
       {scanMessage && (
-        <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 p-4 rounded-xl text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+        <div role="status" className={`${scanMessage.startsWith('Consistency scan failed') ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-emerald-50 border-emerald-300 text-emerald-900'} border p-4 rounded-xl text-xs flex items-center gap-2`}>
+          {scanMessage.startsWith('Consistency scan failed')
+            ? <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            : <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
           <span>{scanMessage}</span>
         </div>
       )}
 
       {/* Safety Gate Status Banner */}
       <div className={`p-6 rounded-2xl border shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
-        isReady ? 'bg-emerald-50/70 border-emerald-200' : 'bg-rose-50/70 border-rose-300'
+        !hasScanned ? 'bg-sky-50/70 border-sky-200' : isReady ? 'bg-emerald-50/70 border-emerald-200' : 'bg-rose-50/70 border-rose-300'
       }`}>
         <div className="flex items-center gap-4">
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-            isReady ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+            !hasScanned ? 'bg-sky-100 text-sky-800' : isReady ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
           }`}>
-            {isReady ? <ShieldCheck className="w-7 h-7" /> : <AlertTriangle className="w-7 h-7" />}
+            {!hasScanned ? <Info className="w-7 h-7" /> : isReady ? <ShieldCheck className="w-7 h-7" /> : <AlertTriangle className="w-7 h-7" />}
           </div>
           <div>
-            <h3 className={`font-serif text-lg font-bold ${isReady ? 'text-emerald-950' : 'text-rose-950'}`}>
-              {isReady ? 'Publication Safety Gate: PASSED' : 'Publication Safety Gate: ACTION REQUIRED'}
+            <h3 className={`font-serif text-lg font-bold ${!hasScanned ? 'text-sky-950' : isReady ? 'text-emerald-950' : 'text-rose-950'}`}>
+              {!hasScanned ? 'Consistency check not run yet' : isReady ? 'No critical inconsistencies found' : 'Critical inconsistencies need review'}
             </h3>
             <p className="text-xs text-[#351D1D]/80 mt-0.5">
-              {isReady
-                ? 'All factual claims and numerical metrics are consistent across every deliverable.'
-                : `${criticalCount} critical discrepancy flagged. Resolve warnings before exporting publication package.`}
+              {!hasScanned
+                ? 'Run the check to compare generated outputs. A clear scan is not medical approval.'
+                : isReady
+                  ? 'Review any warnings and get qualified human approval before publication.'
+                  : `${criticalCount} critical ${criticalCount === 1 ? 'issue needs' : 'issues need'} review before relying on these outputs.`}
             </p>
           </div>
         </div>
 
         <button
-          onClick={() => onNavigate('export_center')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-bold shadow transition flex items-center gap-1.5 ${
-            isReady
-              ? 'bg-[#661414] text-[#F5EBDF] hover:bg-[#351D1D]'
-              : 'bg-stone-300 text-stone-700 cursor-not-allowed'
-          }`}
+          onClick={() => {
+            if (!hasScanned) handleRunScan();
+            else if (isReady) onNavigate('export_center');
+            else document.getElementById('integrity-checks')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+          disabled={isLoading}
+          className="px-5 py-2.5 rounded-xl text-xs font-bold shadow transition flex items-center gap-1.5 bg-[#661414] text-[#F5EBDF] hover:bg-[#351D1D] disabled:opacity-60"
         >
-          Go to Export Center
+          {!hasScanned ? 'Run check now' : isReady ? 'Continue to exports' : 'Review flagged issues'}
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>
 
       {/* Discrepancies List */}
-      <div className="space-y-4">
+      <div id="integrity-checks" className="space-y-4">
         <h3 className="font-serif text-lg font-bold text-[#661414]">
-          Integrity Checks Log ({checks.length})
+          Check results ({checks.length})
         </h3>
 
         {checks.length === 0 ? (
           <div className="bg-[#FFFFFF] border border-[#E6CBBD] rounded-2xl p-10 text-center space-y-2">
-            <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-            <h4 className="font-serif font-bold text-base text-[#351D1D]">No Discrepancies Detected</h4>
+            {hasScanned ? <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" /> : <Info className="w-8 h-8 text-sky-600 mx-auto" />}
+            <h4 className="font-serif font-bold text-base text-[#351D1D]">{hasScanned ? 'No inconsistencies flagged' : 'Run the check to see results'}</h4>
             <p className="text-xs text-[#B58777]">
-              All extracted numbers, units, limitations, and quotes correspond directly with the source literature.
+              {hasScanned
+                ? 'The scan found no stored discrepancies in the generated outputs. This does not confirm the claims are true or clinically approved.'
+                : 'The scan compares available numbers, units and limitations across the generated formats.'}
             </p>
           </div>
         ) : (

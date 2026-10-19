@@ -49,7 +49,7 @@ export const ExportCenterPage: React.FC<ExportCenterPageProps> = ({ currentProje
     try {
       const res = await api.exportProject(currentProject.id);
       setExportData(res.export);
-      setStatusMessage('Master publication package and audit manifest assembled successfully.');
+      setStatusMessage('Export bundle assembled. Medical review status is separate—check it before sharing.');
     } catch (err: any) {
       setStatusMessage('Export packaging failed: ' + err.message);
     } finally {
@@ -81,13 +81,13 @@ export const ExportCenterPage: React.FC<ExportCenterPageProps> = ({ currentProje
         <div>
           <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#C04E2A] uppercase tracking-wider mb-1">
             <Archive className="w-3.5 h-3.5" />
-            Section 13 • Delivery & Distribution
+            Last step · downloads
           </div>
           <h1 className="font-serif text-3xl font-bold text-[#661414]">
-            Export Center
+            Download your work
           </h1>
           <p className="text-xs text-[#351D1D]/75">
-            Download individual assets or bundle the entire publication suite into a single verifiable archive.
+            Download individual files or bundle the outputs generated for <span className="font-semibold">{currentProject.title}</span>. Creating a bundle does not mean the content has medical approval.
           </p>
         </div>
 
@@ -97,13 +97,20 @@ export const ExportCenterPage: React.FC<ExportCenterPageProps> = ({ currentProje
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#661414] text-[#F5EBDF] text-xs font-bold hover:bg-[#351D1D] shadow transition"
         >
           {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
-          Assemble Master Export Package
+          {isLoading ? 'Preparing bundle…' : 'Prepare download bundle'}
         </button>
       </div>
 
+      <div className="export-howto" role="note">
+        <strong>Before you download</strong>
+        <span>Generate any missing files in Content Studio or Presentation, review claims, then run the consistency check. The ZIP contains generated files; it is not a medical sign-off.</span>
+      </div>
+
       {statusMessage && (
-        <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 p-4 rounded-xl text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+        <div role="status" className={`${statusMessage.startsWith('Export packaging failed') ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-emerald-50 border-emerald-300 text-emerald-900'} border p-4 rounded-xl text-xs flex items-center gap-2`}>
+          {statusMessage.startsWith('Export packaging failed')
+            ? <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            : <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
           <span>{statusMessage}</span>
         </div>
       )}
@@ -114,17 +121,17 @@ export const ExportCenterPage: React.FC<ExportCenterPageProps> = ({ currentProje
           <div className="space-y-1.5 max-w-2xl">
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] font-bold bg-[#C04E2A] text-white px-2 py-0.5 rounded">
-                PUBLICATION READY
+                PACKAGE AVAILABLE
               </span>
               <span className="text-xs text-[#E6CBBD]">
                 Size: {Math.round((exportData.file_size_bytes || 0) / 1024)} KB
               </span>
             </div>
             <h2 className="font-serif text-xl font-bold text-white">
-              Complete Steer Multi-Deliverable ZIP Package
+              Download bundle
             </h2>
             <p className="text-xs text-[#E6CBBD] leading-relaxed">
-              Includes Carousel ZIP, Static Post PNG, MP4 video reels, PowerPoint presentation, Captions text, and the Traceable Evidence Audit Manifest.
+              Includes the outputs generated so far, plus captions and an evidence audit manifest. Review each file before sharing.
             </p>
           </div>
 
@@ -142,8 +149,9 @@ export const ExportCenterPage: React.FC<ExportCenterPageProps> = ({ currentProje
       {/* Individual Deliverables Grid */}
       <div className="space-y-4">
         <h3 className="font-serif text-lg font-bold text-[#661414]">
-          Individual Deliverables & Formats
+          Individual files
         </h3>
+        <p className="text-xs text-[#351D1D]/70">The labels show file format, not evidence verification or clinical approval.</p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Deliverable 1: Carousel */}
@@ -151,7 +159,7 @@ export const ExportCenterPage: React.FC<ExportCenterPageProps> = ({ currentProje
             <div className="flex items-center justify-between">
               <Layers className="w-6 h-6 text-[#661414]" />
               <span className="text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">
-                VERIFIED
+                PNG slides
               </span>
             </div>
             <div>
@@ -173,7 +181,7 @@ export const ExportCenterPage: React.FC<ExportCenterPageProps> = ({ currentProje
             <div className="flex items-center justify-between">
               <ImageIcon className="w-6 h-6 text-[#C04E2A]" />
               <span className="text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">
-                VERIFIED
+                PNG image
               </span>
             </div>
             <div>
@@ -195,7 +203,7 @@ export const ExportCenterPage: React.FC<ExportCenterPageProps> = ({ currentProje
             <div className="flex items-center justify-between">
               <Presentation className="w-6 h-6 text-[#661414]" />
               <span className="text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">
-                10 SLIDES
+                PPTX deck
               </span>
             </div>
             <div>
@@ -239,7 +247,7 @@ export const ExportCenterPage: React.FC<ExportCenterPageProps> = ({ currentProje
             <div className="flex items-center justify-between">
               <FileText className="w-6 h-6 text-[#661414]" />
               <span className="text-[10px] font-bold bg-[#E6CBBD] text-[#661414] px-2 py-0.5 rounded">
-                TEXT
+                TEXT file
               </span>
             </div>
             <div>
@@ -261,7 +269,7 @@ export const ExportCenterPage: React.FC<ExportCenterPageProps> = ({ currentProje
             <div className="flex items-center justify-between">
               <ShieldCheck className="w-6 h-6 text-emerald-700" />
               <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
-                AUDIT LOG
+                SOURCE LOG
               </span>
             </div>
             <div>
