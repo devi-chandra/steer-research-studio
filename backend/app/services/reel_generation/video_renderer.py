@@ -514,7 +514,9 @@ async def render_video_reel(
             "-i", "pipe:0",
             "-i", str(audio_mp3),
             "-c:v", "libx264",
-            "-preset", "veryfast",
+            # Keep encoder memory predictable on small hosted instances.
+            "-threads", "1",
+            "-preset", "ultrafast",
             "-tune", "animation",
             "-crf", "20",
             "-pix_fmt", "yuv420p",
@@ -527,39 +529,51 @@ async def render_video_reel(
             str(scene_mp4)
         ]
 
-        proc = subprocess.Popen(
-            ffmpeg_cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
+        ffmpeg_log_path = work_dir / f"scene_{scene_idx:02d}_ffmpeg.log"
+        if scene_mp4.exists():
+            scene_mp4.unlink()
 
-        for f in range(num_frames):
-            frame_prog = f / max(1, num_frames - 1)
-            time_sec = f / float(fps)
-            frame_img = _render_scene_frame_dynamic(
-                sc, reel_mode, scene_idx, len(scenes),
-                frame_prog, lang_code, desc_lines, sub_lines,
-                time_sec=time_sec, theme=theme,
-                base_canvas=base_canvas
+        # Preserve FFmpeg diagnostics instead of hiding the cause of failure.
+        with ffmpeg_log_path.open("wb") as ffmpeg_log:
+            proc = subprocess.Popen(
+                ffmpeg_cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=ffmpeg_log
             )
-            if f == 0:
-                frame_img.save(preview_png, "PNG")
 
             try:
-                proc.stdin.write(frame_img.tobytes())
-            except (BrokenPipeError, OSError):
-                break
+                for f in range(num_frames):
+                    frame_prog = f / max(1, num_frames - 1)
+                    time_sec = f / float(fps)
+                    frame_img = _render_scene_frame_dynamic(
+                        sc, reel_mode, scene_idx, len(scenes),
+                        frame_prog, lang_code, desc_lines, sub_lines,
+                        time_sec=time_sec, theme=theme,
+                        base_canvas=base_canvas
+                    )
+                    if f == 0:
+                        frame_img.save(preview_png, "PNG")
 
-        try:
-            proc.stdin.close()
-        except Exception:
-            pass
+                    try:
+                        proc.stdin.write(frame_img.convert("RGB").tobytes())
+                    except (BrokenPipeError, OSError):
+                        break
+            finally:
+                if proc.stdin:
+                    try:
+                        proc.stdin.close()
+                    except (BrokenPipeError, OSError):
+                        pass
+                proc.wait()
 
-        proc.wait()
-
-        if proc.returncode != 0 or not scene_mp4.exists():
-            raise RuntimeError(f"FFmpeg scene encoding failed for scene {scene_idx}")
+        if proc.returncode != 0 or not scene_mp4.exists() or scene_mp4.stat().st_size == 0:
+            diagnostic = ffmpeg_log_path.read_text(encoding="utf-8", errors="replace").strip()
+            diagnostic = diagnostic[-2400:] if diagnostic else "FFmpeg produced no diagnostic output."
+            raise RuntimeError(
+                f"FFmpeg scene encoding failed for scene {scene_idx} "
+                f"(exit code {proc.returncode}): {diagnostic}"
+            )
 
         scene_segments.append(scene_mp4)
         rendered_scenes_data.append({
